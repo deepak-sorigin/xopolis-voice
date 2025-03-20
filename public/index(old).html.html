@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Speech Transcription & Translation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 10px;
+        }
+        .app-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .controls-container {
+            flex: 1;
+            min-width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .output-container {
+            flex: 2;
+            min-width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        select, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #155db5;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .output-box {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 150px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .output-box h3 {
+            margin-top: 0;
+            color: #1a73e8;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .output-text {
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        .status {
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .recording {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .idle {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .metrics {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .metric-box {
+            flex: 1;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #e3f2fd;
+            text-align: center;
+            margin: 0 5px;
+        }
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a73e8;
+        }
+        .visualization {
+            margin: 20px 0;
+            height: 60px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        #audio-visualizer {
+            width: 100%;
+            height: 100%;
+        }
+        .language-pair {
+            display: flex;
+            gap: 10px;
+        }
+        .language-pair select {
+            flex: 1;
+        }
+        .info-section {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e8f0fe;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Real-Time Speech Transcription & Translation</h1>
+        <p>Powered by Google Cloud Speech-to-Text and Translation APIs</p>
+    </header>
+
+    <div class="app-container">
+        <div class="controls-container">
+            <div class="control-group">
+                <label for="source-language">Source Language:</label>
+                <select id="source-language">
+                    <option value="en-US">English (US)</option>
+                    <option value="es-ES">Spanish (Spain)</option>
+                    <option value="fr-FR">French (France)</option>
+                    <option value="de-DE">German (Germany)</option>
+                    <option value="ja-JP">Japanese (Japan)</option>
+                    <option value="zh-CN">Chinese (Simplified)</option>
+                    <option value="ru-RU">Russian (Russia)</option>
+                    <option value="pt-BR">Portuguese (Brazil)</option>
+                    <option value="ar-SA">Arabic (Saudi Arabia)</option>
+                    <option value="hi-IN">Hindi (India)</option>
+                    <!-- Additional languages would be added here -->
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="target-language">Translate To:</label>
+                <select id="target-language">
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="ja">Japanese</option>
+                    <option value="zh">Chinese (Simplified)</option>
+                    <option value="ru">Russian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="ar">Arabic</option>
+                    <option value="hi">Hindi</option>
+                    <!-- Additional languages would be added here -->
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="status idle" id="status">Ready to start</div>
+                <button id="start-button">Start Recording</button>
+                <button id="stop-button" disabled>Stop Recording</button>
+            </div>
+
+            <div class="visualization">
+                <canvas id="audio-visualizer"></canvas>
+            </div>
+
+            <div class="metrics">
+                <div class="metric-box">
+                    <div>Latency</div>
+                    <div class="metric-value" id="latency">0 ms</div>
+                </div>
+                <div class="metric-box">
+                    <div>Audio Quality</div>
+                    <div class="metric-value" id="audio-quality">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="output-container">
+            <div class="output-box">
+                <h3>Transcription (Original)</h3>
+                <div class="output-text" id="transcription-output">Your transcribed text will appear here...</div>
+            </div>
+            
+            <div class="output-box">
+                <h3>Translation</h3>
+                <div class="output-text" id="translation-output">Your translated text will appear here...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>About This Application</h3>
+        <p>This application uses Google Cloud's Speech-to-Text API for real-time streaming transcription and Cloud Translation API for immediate translation. It supports over 120 languages and offers low-latency processing for production environments.</p>
+        <p><strong>Note:</strong> In a complete implementation, you would need to:</p>
+        <ul>
+            <li>Set up authentication with Google Cloud and include your API keys</li>
+            <li>Implement the WebSocket connections to Google Cloud services</li>
+            <li>Add error handling and reconnection logic</li>
+            <li>Optimize for production environments</li>
+        </ul>
+    </div>
+
+    <script>
+        // DOM Elements
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const statusElement = document.getElementById('status');
+        const sourceLanguageSelect = document.getElementById('source-language');
+        const targetLanguageSelect = document.getElementById('target-language');
+        const transcriptionOutput = document.getElementById('transcription-output');
+        const translationOutput = document.getElementById('translation-output');
+        const latencyElement = document.getElementById('latency');
+        const audioQualityElement = document.getElementById('audio-quality');
+        const visualizer = document.getElementById('audio-visualizer');
+        
+        // Global variables
+        let mediaRecorder;
+        let audioContext;
+        let analyser;
+        let isRecording = false;
+        let recordingStartTime;
+        let visualizerContext = visualizer.getContext('2d');
+        
+        // For demo purposes - In a real implementation, this would connect to Google Cloud APIs
+        const mockTranscriptionData = [
+            "Hello, this is a test of the real-time transcription system.",
+            "We are demonstrating how the system would work with Google Cloud APIs.",
+            "The actual implementation would use WebSockets to connect to the Speech-to-Text service.",
+            "And then pass the transcribed text to the Translation API for real-time translation.",
+            "This would support over 120 languages with very low latency."
+        ];
+        
+        const mockTranslationData = {
+            "es": [
+                "Hola, esta es una prueba del sistema de transcripción en tiempo real.",
+                "Estamos demostrando cómo funcionaría el sistema con las API de Google Cloud.",
+                "La implementación real utilizaría WebSockets para conectarse al servicio de Speech-to-Text.",
+                "Y luego pasaría el texto transcrito a la API de traducción para su traducción en tiempo real.",
+                "Esto admitirá más de 120 idiomas con una latencia muy baja."
+            ],
+            "fr": [
+                "Bonjour, ceci est un test du système de transcription en temps réel.",
+                "Nous démontrons comment le système fonctionnerait avec les API Google Cloud.",
+                "L'implémentation réelle utiliserait WebSockets pour se connecter au service Speech-to-Text.",
+                "Puis transmettrait le texte transcrit à l'API de traduction pour une traduction en temps réel.",
+                "Cela prendrait en charge plus de 120 langues avec une très faible latence."
+            ],
+            "de": [
+                "Hallo, dies ist ein Test des Echtzeit-Transkriptionssystems.",
+                "Wir demonstrieren, wie das System mit Google Cloud APIs funktionieren würde.",
+                "Die tatsächliche Implementierung würde WebSockets verwenden, um eine Verbindung zum Speech-to-Text-Dienst herzustellen.",
+                "Und dann den transkribierten Text zur Übersetzungs-API für die Echtzeit-Übersetzung weiterleiten.",
+                "Dies würde über 120 Sprachen mit sehr geringer Latenz unterstützen."
+            ]
+        };
+        
+        // Initialize the visualization canvas
+        function initVisualizer() {
+            visualizer.width = visualizer.offsetWidth;
+            visualizer.height = visualizer.offsetHeight;
+            visualizerContext.fillStyle = '#e3f2fd';
+            visualizerContext.fillRect(0, 0, visualizer.width, visualizer.height);
+        }
+        
+        // Draw visualization bars
+        function drawVisualization(dataArray) {
+            const bufferLength = dataArray.length;
+            const barWidth = (visualizer.width / bufferLength) * 2.5;
+            
+            visualizerContext.fillStyle = '#f5f5f5';
+            visualizerContext.fillRect(0, 0, visualizer.width, visualizer.height);
+            
+            let x = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                const barHeight = dataArray[i] / 255 * visualizer.height;
+                
+                visualizerContext.fillStyle = `rgb(${dataArray[i]}, 158, 232)`;
+                visualizerContext.fillRect(x, visualizer.height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+            }
+        }
+        
+        // Start recording function
+        async function startRecording() {
+            try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Set up AudioContext for visualization
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+                
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                
+                // Update visualization
+                function updateVisualization() {
+                    if (isRecording) {
+                        requestAnimationFrame(updateVisualization);
+                        analyser.getByteFrequencyData(dataArray);
+                        drawVisualization(dataArray);
+                    }
+                }
+                
+                // Set up MediaRecorder
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.start();
+                isRecording = true;
+                recordingStartTime = Date.now();
+                
+                // Update UI
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                statusElement.textContent = "Recording...";
+                statusElement.classList.remove('idle');
+                statusElement.classList.add('recording');
+                
+                // Start visualization
+                updateVisualization();
+                
+                // Mock the real-time transcription and translation process
+                mockStreamingProcess();
+                
+                // Calculate and update audio quality (mock)
+                updateAudioQuality();
+                
+            } catch (error) {
+                console.error("Error accessing microphone:", error);
+                alert("Error accessing microphone: " + error.message);
+            }
+        }
+        
+        // Stop recording function
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // Update UI
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                statusElement.textContent = "Ready to start";
+                statusElement.classList.remove('recording');
+                statusElement.classList.add('idle');
+                
+                // Clear visualization
+                visualizerContext.fillStyle = '#f5f5f5';
+                visualizerContext.fillRect(0, 0, visualizer.width, visualizer.height);
+            }
+        }
+        
+        // Mock streaming transcription and translation
+        function mockStreamingProcess() {
+            let index = 0;
+            const targetLang = targetLanguageSelect.value;
+            
+            const processInterval = setInterval(() => {
+                if (!isRecording) {
+                    clearInterval(processInterval);
+                    return;
+                }
+                
+                if (index < mockTranscriptionData.length) {
+                    // Update transcription
+                    const transcription = mockTranscriptionData[index];
+                    transcriptionOutput.textContent += (index > 0 ? " " : "") + transcription;
+                    
+                    // Update translation
+                    if (mockTranslationData[targetLang] && mockTranslationData[targetLang][index]) {
+                        const translation = mockTranslationData[targetLang][index];
+                        translationOutput.textContent += (index > 0 ? " " : "") + translation;
+                    } else {
+                        translationOutput.textContent += (index > 0 ? " " : "") + "[Translation not available for this language]";
+                    }
+                    
+                    // Update latency
+                    updateLatency();
+                    
+                    index++;
+                } else {
+                    clearInterval(processInterval);
+                }
+            }, 2000);
+        }
+        
+        // Update latency display (mock)
+        function updateLatency() {
+            // In a real implementation, this would measure actual API response times
+            const mockLatency = Math.floor(Math.random() * 150) + 50; // Random value between 50-200ms
+            latencyElement.textContent = `${mockLatency} ms`;
+        }
+        
+        // Update audio quality indicator (mock)
+        function updateAudioQuality() {
+            // In a real implementation, this would analyze actual audio quality
+            const qualities = ["Good", "Excellent", "Fair"];
+            const randomIndex = Math.floor(Math.random() * qualities.length);
+            audioQualityElement.textContent = qualities[randomIndex];
+        }
+        
+        // Event listeners
+        startButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+        
+        // Reset outputs when language changes
+        sourceLanguageSelect.addEventListener('change', () => {
+            if (!isRecording) {
+                transcriptionOutput.textContent = "Your transcribed text will appear here...";
+                translationOutput.textContent = "Your translated text will appear here...";
+            }
+        });
+        
+        targetLanguageSelect.addEventListener('change', () => {
+            if (!isRecording) {
+                translationOutput.textContent = "Your translated text will appear here...";
+            }
+        });
+        
+        // Initialize the application
+        window.addEventListener('load', () => {
+            initVisualizer();
+            
+            // Check if browser supports necessary APIs
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("Your browser doesn't support audio recording. Please use a modern browser like Chrome, Firefox, or Edge.");
+                startButton.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>

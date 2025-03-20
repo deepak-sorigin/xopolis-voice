@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceFlow | Multilingual Speech Translation</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Additional styles for the improved conversation mode */
+        .mode-selector {
+            display: flex;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .mode-option {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .mode-option.active {
+            background-color: #1a73e8;
+            color: white;
+        }
+        
+        /* Split screen layout */
+        .conversation-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            height: calc(100vh - 220px);
+            min-height: 500px;
+        }
+        
+        .speaker-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .speaker-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .speaker-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e3f2fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 10px;
+        }
+        
+        .speaker-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: #333;
+            margin: 0;
+        }
+        
+        .language-selector {
+            margin-bottom: 20px;
+        }
+        
+        .language-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .speaking-controls {
+            margin-bottom: 20px;
+        }
+        
+        .speaking-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .speaking-btn.start {
+            background-color: #1a73e8;
+            color: white;
+        }
+        
+        .speaking-btn.stop {
+            background-color: #ea4335;
+            color: white;
+        }
+        
+        .speaking-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .visualization {
+            height: 60px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .transcription-box, .translation-box {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            margin-bottom: 15px;
+            overflow-y: auto;
+        }
+        
+        .transcription-box h3, .translation-box h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #1a73e8;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .transcription-text, .translation-text {
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        
+        .active-speaker {
+            box-shadow: 0 0 0 3px #1a73e8;
+        }
+        
+        .microphone-icon {
+            margin-right: 8px;
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Pulse animation for active speaker */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(26, 115, 232, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(26, 115, 232, 0);
+            }
+        }
+        
+        .pulsing {
+            animation: pulse 1.5s infinite;
+        }
+        
+        /* Status indicator */
+        .status-indicator {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .status-indicator.idle {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-indicator.listening {
+            background-color: #e3f2fd;
+            color: #0277bd;
+        }
+        
+        .status-indicator.processing {
+            background-color: #fff3e0;
+            color: #e65100;
+        }
+        
+        /* Hide/show different UI modes */
+        .single-mode, .conversation-mode {
+            display: none;
+        }
+        
+        .show {
+            display: block;
+        }
+        
+        /* Make responsive */
+        @media (max-width: 768px) {
+            .conversation-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .speaker-panel {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>VoiceFlow</h1>
+        <p>Built by ProtoBots.ai</p>
+    </header>
+
+    <!-- Mode Selector -->
+    <div class="mode-selector">
+        <div class="mode-option active" id="single-mode-btn">Single Speaker</div>
+        <div class="mode-option" id="conversation-mode-btn">Conversation</div>
+    </div>
+
+    <!-- Single Speaker Mode (Original UI) -->
+    <div class="single-mode show" id="single-mode">
+        <!-- Original single speaker UI goes here -->
+        <div class="app-container">
+            <div class="controls-container">
+                <div class="control-group">
+                    <label for="source-language">Source Language:</label>
+                    <select id="source-language"></select>
+                </div>
+
+                <div class="control-group">
+                    <label for="target-language">Translate To:</label>
+                    <select id="target-language"></select>
+                </div>
+
+                <div class="control-group">
+                    <div class="status idle" id="status">Ready to start</div>
+                    <button id="start-button">Start Recording</button>
+                    <button id="stop-button" disabled>Stop Recording</button>
+                </div>
+
+                <div class="visualization">
+                    <canvas id="audio-visualizer"></canvas>
+                </div>
+
+                <div class="metrics">
+                    <div class="metric-box">
+                        <div>Latency</div>
+                        <div class="metric-value" id="latency">0 ms</div>
+                    </div>
+                    <div class="metric-box">
+                        <div>Audio Quality</div>
+                        <div class="metric-value" id="audio-quality">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-container">
+                <div class="output-box">
+                    <h3>Transcription (Original)</h3>
+                    <div class="output-text" id="transcription-output">Your transcribed text will appear here...</div>
+                </div>
+                
+                <div class="output-box">
+                    <h3>Translation</h3>
+                    <div class="output-text" id="translation-output">Your translated text will appear here...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Improved Conversation Mode (Split Screen) -->
+    <div class="conversation-mode" id="conversation-mode">
+        <div class="conversation-container">
+            <!-- Speaker 1 Panel (Left Side) -->
+            <div class="speaker-panel" id="speaker1-panel">
+                <div class="speaker-header">
+                    <div class="speaker-icon">1</div>
+                    <h2 class="speaker-title">Speaker 1</h2>
+                </div>
+                
+                <div class="language-selector">
+                    <label for="speaker1-language">I speak:</label>
+                    <select id="speaker1-language" class="speaker-language"></select>
+                </div>
+                
+                <div class="status-indicator idle" id="speaker1-status">Ready</div>
+                
+                <div class="speaking-controls">
+                    <button id="speaker1-toggle" class="speaking-btn start">
+                        <svg class="microphone-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        Start Speaking
+                    </button>
+                </div>
+                
+                <div class="visualization">
+                    <canvas id="speaker1-visualizer"></canvas>
+                </div>
+                
+                <div class="content-area">
+                    <div class="transcription-box">
+                        <h3>I'm saying (original):</h3>
+                        <div class="transcription-text" id="speaker1-transcription"></div>
+                    </div>
+                    
+                    <div class="translation-box">
+                        <h3>I'm hearing (translated):</h3>
+                        <div class="translation-text" id="speaker1-translation"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Speaker 2 Panel (Right Side) -->
+            <div class="speaker-panel" id="speaker2-panel">
+                <div class="speaker-header">
+                    <div class="speaker-icon">2</div>
+                    <h2 class="speaker-title">Speaker 2</h2>
+                </div>
+                
+                <div class="language-selector">
+                    <label for="speaker2-language">I speak:</label>
+                    <select id="speaker2-language" class="speaker-language"></select>
+                </div>
+                
+                <div class="status-indicator idle" id="speaker2-status">Ready</div>
+                
+                <div class="speaking-controls">
+                    <button id="speaker2-toggle" class="speaking-btn start">
+                        <svg class="microphone-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        Start Speaking
+                    </button>
+                </div>
+                
+                <div class="visualization">
+                    <canvas id="speaker2-visualizer"></canvas>
+                </div>
+                
+                <div class="content-area">
+                    <div class="transcription-box">
+                        <h3>I'm saying (original):</h3>
+                        <div class="transcription-text" id="speaker2-transcription"></div>
+                    </div>
+                    
+                    <div class="translation-box">
+                        <h3>I'm hearing (translated):</h3>
+                        <div class="translation-text" id="speaker2-translation"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>About VoiceFlow</h3>
+        <p>This application provides real-time streaming transcription and immediate translation. It supports over 120 languages and offers low-latency processing for production environments. You can contact us for more information at Support@ProtoBots.ai</p>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="conversation-mode.js"></script>
+    <script>
+        // Basic UI functionality for the conversation mode
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mode switching
+            const singleModeBtn = document.getElementById('single-mode-btn');
+            const conversationModeBtn = document.getElementById('conversation-mode-btn');
+            const singleMode = document.getElementById('single-mode');
+            const conversationMode = document.getElementById('conversation-mode');
+            
+            // Speaker elements
+            const speaker1Toggle = document.getElementById('speaker1-toggle');
+            const speaker2Toggle = document.getElementById('speaker2-toggle');
+            const speaker1Panel = document.getElementById('speaker1-panel');
+            const speaker2Panel = document.getElementById('speaker2-panel');
+            const speaker1Status = document.getElementById('speaker1-status');
+            const speaker2Status = document.getElementById('speaker2-status');
+            const speaker1Language = document.getElementById('speaker1-language');
+            const speaker2Language = document.getElementById('speaker2-language');
+            
+            // Initialize language dropdowns (simplified version)
+            function initializeLanguages() {
+                const languages = [
+                    { code: 'ar-EG', name: 'Arabic (Egypt)' },
+                    { code: 'ar-SA', name: 'Arabic (Saudi Arabia)' },
+                    { code: 'bn-IN', name: 'Bengali (India)' },
+                    { code: 'zh-CN', name: 'Chinese (Simplified)' },
+                    { code: 'zh-TW', name: 'Chinese (Traditional)' },
+                    { code: 'nl-NL', name: 'Dutch (Netherlands)' },
+                    { code: 'en-GB', name: 'English (UK)' },
+                    { code: 'en-US', name: 'English (US)' },
+                    { code: 'fil-PH', name: 'Filipino (Philippines)' },
+                    { code: 'fr-FR', name: 'French (France)' },
+                    { code: 'de-DE', name: 'German (Germany)' },
+                    { code: 'hi-IN', name: 'Hindi (India)' },
+                    { code: 'id-ID', name: 'Indonesian (Indonesia)' },
+                    { code: 'it-IT', name: 'Italian (Italy)' },
+                    { code: 'ja-JP', name: 'Japanese (Japan)' },
+                    { code: 'ko-KR', name: 'Korean (South Korea)' },
+                    { code: 'mr-IN', name: 'Marathi (India)' },
+                    { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+                    { code: 'pt-PT', name: 'Portuguese (Portugal)' },
+                    { code: 'ru-RU', name: 'Russian (Russia)' },
+                    { code: 'es-MX', name: 'Spanish (Mexico)' },
+                    { code: 'es-ES', name: 'Spanish (Spain)' },
+                    { code: 'th-TH', name: 'Thai (Thailand)' },
+                    { code: 'tr-TR', name: 'Turkish (Turkey)' },
+                    { code: 'uk-UA', name: 'Ukrainian (Ukraine)' },
+                    { code: 'ur-PK', name: 'Urdu (Pakistan)' },
+                    { code: 'vi-VN', name: 'Vietnamese (Vietnam)' }                    
+                ];
+                
+                // Clear and populate dropdowns
+                speaker1Language.innerHTML = '';
+                speaker2Language.innerHTML = '';
+                
+                languages.forEach(lang => {
+                    const option1 = document.createElement('option');
+                    option1.value = lang.code;
+                    option1.textContent = lang.name;
+                    speaker1Language.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = lang.code;
+                    option2.textContent = lang.name;
+                    speaker2Language.appendChild(option2);
+                });
+                
+                // Set default languages
+                speaker1Language.value = 'en-US';
+                speaker2Language.value = 'es-ES';
+            }
+            
+            // Initialize visualizers
+            function initializeVisualizers() {
+                const visualizer1 = document.getElementById('speaker1-visualizer');
+                const visualizer2 = document.getElementById('speaker2-visualizer');
+                
+                const ctx1 = visualizer1.getContext('2d');
+                const ctx2 = visualizer2.getContext('2d');
+                
+                visualizer1.width = visualizer1.offsetWidth;
+                visualizer1.height = visualizer1.offsetHeight;
+                visualizer2.width = visualizer2.offsetWidth;
+                visualizer2.height = visualizer2.offsetHeight;
+                
+                ctx1.fillStyle = '#f5f5f5';
+                ctx1.fillRect(0, 0, visualizer1.width, visualizer1.height);
+                ctx2.fillStyle = '#f5f5f5';
+                ctx2.fillRect(0, 0, visualizer2.width, visualizer2.height);
+            }
+            
+            // Toggle speaking state for a speaker
+            function toggleSpeaking(speakerId) {
+                const isFirstSpeaker = speakerId === 1;
+                const activeToggle = isFirstSpeaker ? speaker1Toggle : speaker2Toggle;
+                const inactiveToggle = isFirstSpeaker ? speaker2Toggle : speaker1Toggle;
+                const activePanel = isFirstSpeaker ? speaker1Panel : speaker2Panel;
+                const activeStatus = isFirstSpeaker ? speaker1Status : speaker2Status;
+                
+                // Check if currently speaking or not
+                const isSpeaking = activeToggle.classList.contains('stop');
+                
+                if (isSpeaking) {
+                    // Stop speaking
+                    activeToggle.classList.remove('stop');
+                    activeToggle.classList.add('start');
+                    activeToggle.innerHTML = `
+                        <svg class="microphone-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        Start Speaking
+                    `;
+                    activePanel.classList.remove('active-speaker', 'pulsing');
+                    activeStatus.textContent = 'Ready';
+                    activeStatus.className = 'status-indicator idle';
+                    
+                    // Enable the other speaker's button
+                    inactiveToggle.disabled = false;
+                    
+                    // In a real implementation, this would stop recording
+                    // and process the final transcription and translation
+                    simulateTranscriptionEnd(speakerId);
+                } else {
+                    // Start speaking
+                    activeToggle.classList.remove('start');
+                    activeToggle.classList.add('stop');
+                    activeToggle.innerHTML = `
+                        <svg class="microphone-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        Stop Speaking
+                    `;
+                    activePanel.classList.add('active-speaker', 'pulsing');
+                    activeStatus.textContent = 'Listening...';
+                    activeStatus.className = 'status-indicator listening';
+                    
+                    // Disable the other speaker's button
+                    inactiveToggle.disabled = true;
+                    
+                    // In a real implementation, this would start recording
+                    // and begin streaming transcription and translation
+                    simulateTranscription(speakerId);
+                }
+            }
+            
+            // Simulate transcription for demo (would be replaced by actual implementation)
+            function simulateTranscription(speakerId) {
+                const isFirstSpeaker = speakerId === 1;
+                const transcriptionElem = isFirstSpeaker ? 
+                    document.getElementById('speaker1-transcription') : 
+                    document.getElementById('speaker2-transcription');
+                const otherTranslationElem = isFirstSpeaker ? 
+                    document.getElementById('speaker2-translation') : 
+                    document.getElementById('speaker1-translation');
+                
+                // Sample phrases in different languages
+                const phrases = {
+                    'en-US': [
+                        "Hello, how are you today?",
+                        "I'm doing great, thank you for asking.",
+                        "Could you tell me more about this application?",
+                        "This real-time translation is very impressive.",
+                        "It's nice to be able to communicate without language barriers."
+                    ],
+                    'es-ES': [
+                        "Hola, ¿cómo estás hoy?",
+                        "Estoy muy bien, gracias por preguntar.",
+                        "¿Podrías contarme más sobre esta aplicación?",
+                        "Esta traducción en tiempo real es muy impresionante.",
+                        "Es bueno poder comunicarse sin barreras lingüísticas."
+                    ],
+                    'fr-FR': [
+                        "Bonjour, comment allez-vous aujourd'hui?",
+                        "Je vais très bien, merci de demander.",
+                        "Pourriez-vous m'en dire plus sur cette application?",
+                        "Cette traduction en temps réel est très impressionnante.",
+                        "C'est bien de pouvoir communiquer sans barrières linguistiques."
+                    ],
+                    'de-DE': [
+                        "Hallo, wie geht es Ihnen heute?",
+                        "Mir geht es gut, danke der Nachfrage.",
+                        "Könnten Sie mir mehr über diese Anwendung erzählen?",
+                        "Diese Echtzeit-Übersetzung ist sehr beeindruckend.",
+                        "Es ist schön, ohne Sprachbarrieren kommunizieren zu können."
+                    ]
+                };
+                
+                // Default to English if the selected language isn't in our demo phrases
+                const speakerLang = isFirstSpeaker ? 
+                    speaker1Language.value : speaker2Language.value;
+                const otherLang = isFirstSpeaker ? 
+                    speaker2Language.value : speaker1Language.value;
+                
+                const langForPhrases = phrases[speakerLang] ? speakerLang : 'en-US';
+                const otherLangForPhrases = phrases[otherLang] ? otherLang : 'en-US';
+                
+                // Pick a random phrase
+                const randomIndex = Math.floor(Math.random() * phrases[langForPhrases].length);
+                const phrase = phrases[langForPhrases][randomIndex];
+                const translation = phrases[otherLangForPhrases][randomIndex];
+                
+                // Simulate typing effect for transcription
+                let i = 0;
+                transcriptionElem.textContent = '';
+                
+                function typeText() {
+                    if (i < phrase.length) {
+                        transcriptionElem.textContent += phrase.charAt(i);
+                        i++;
+                        setTimeout(typeText, 50);
+                    } else {
+                        // After transcription is complete, show translation
+                        setTimeout(() => {
+                            otherTranslationElem.textContent = translation;
+                        }, 500);
+                    }
+                }
+                
+                typeText();
+                
+                // Simulate audio visualization
+                simulateAudioVisualization(speakerId);
+            }
+            
+            // Simulate end of transcription
+            function simulateTranscriptionEnd(speakerId) {
+                // In a real implementation, this would handle the end of recording
+                // and finalize any pending transcriptions or translations
+                
+                // Stop visualization
+                const visualizer = document.getElementById(
+                    speakerId === 1 ? 'speaker1-visualizer' : 'speaker2-visualizer'
+                );
+                const ctx = visualizer.getContext('2d');
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(0, 0, visualizer.width, visualizer.height);
+            }
+            
+            // Simulate audio visualization (would be replaced by actual implementation)
+            function simulateAudioVisualization(speakerId) {
+                const visualizer = document.getElementById(
+                    speakerId === 1 ? 'speaker1-visualizer' : 'speaker2-visualizer'
+                );
+                const ctx = visualizer.getContext('2d');
+                
+                // Check if still speaking
+                const speakerToggle = speakerId === 1 ? speaker1Toggle : speaker2Toggle;
+                if (!speakerToggle.classList.contains('stop')) {
+                    return;
+                }
+                
+                // Clear canvas
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(0, 0, visualizer.width, visualizer.height);
+                
+                // Draw random bars
+                const barCount = 40;
+                const barWidth = visualizer.width / barCount;
+                
+                for (let i = 0; i < barCount; i++) {
+                    // Random height for each bar
+                    const height = Math.random() * visualizer.height;
+                    
+                    // Blue color with varying intensity
+                    ctx.fillStyle = `rgb(${Math.floor(100 + Math.random() * 50)}, 158, 232)`;
+                    
+                    // Draw the bar
+                    ctx.fillRect(
+                        i * barWidth, 
+                        visualizer.height - height, 
+                        barWidth - 1, 
+                        height
+                    );
+                }
+                
+                // Continue animation if still speaking
+                requestAnimationFrame(() => simulateAudioVisualization(speakerId));
+            }
+            
+            // Set up mode switching
+            singleModeBtn.addEventListener('click', function() {
+                singleModeBtn.classList.add('active');
+                conversationModeBtn.classList.remove('active');
+                singleMode.classList.add('show');
+                conversationMode.classList.remove('show');
+            });
+            
+            conversationModeBtn.addEventListener('click', function() {
+                conversationModeBtn.classList.add('active');
+                singleModeBtn.classList.remove('active');
+                conversationMode.classList.add('show');
+                singleMode.classList.remove('show');
+                
+                // Initialize conversation mode
+                initializeLanguages();
+                initializeVisualizers();
+            });
+            
+            // Set up speaker toggle buttons
+            speaker1Toggle.addEventListener('click', function() {
+                toggleSpeaking(1);
+            });
+            
+            speaker2Toggle.addEventListener('click', function() {
+                toggleSpeaking(2);
+            });
+            
+            // Language change handlers
+            speaker1Language.addEventListener('change', function() {
+                // In a real implementation, this would update the source language
+                document.getElementById('speaker1-transcription').textContent = '';
+            });
+            
+            speaker2Language.addEventListener('change', function() {
+                // In a real implementation, this would update the source language
+                document.getElementById('speaker2-transcription').textContent = '';
+            });
+        });
+    </script>
+</body>
+</html>

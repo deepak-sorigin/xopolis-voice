@@ -1,0 +1,22 @@
+{
+  "name": "real-time-translator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@google-cloud/speech": "^7.0.1",
+    "@google-cloud/translate": "^9.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.1"
+  }
+}
